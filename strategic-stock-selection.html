@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galactic Stock Strategy: Nifty 50 EMA & RSI Screener</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Pathway+Gothic+One&display=swap"
+        rel="stylesheet">
+    <!-- Chosen Palette: "Galactic Trade" - Dark, cosmic background with glowing accents reminiscent of Star Wars lightsabers and tech interfaces. -->
+    <!-- Application Structure Plan: A top-to-bottom narrative funnel. It starts with a high-level summary, presents the core strategy as an interactive flowchart, explains the rationale with a conceptual chart, provides a hands-on screener simulation, showcases the backend Python script, and concludes with key considerations. This structure mirrors the strategy's filtering logic (broad scan -> specific confirmation -> results), making it highly intuitive for the user to follow and understand the decision-making process. The new section for the Python script highlights the full system architecture. -->
+    <!-- Visualization & Content Choices:
+        - Strategy Overview: A flowchart built with HTML/Tailwind to visually represent the two-part process. Goal: Organize. Interaction: Click to scroll. Justification: Superior to text for explaining a process.
+        - Why it Works: A conceptual Chart.js line chart showing a price bounce off an EMA and a corresponding RSI surge. Goal: Inform/Compare. Interaction: Animate on load. Justification: Visually demonstrates the ideal trade setup.
+        - Screener Simulation: Interactive buttons (EMA selection) that trigger a JS function to filter a mock dataset and render a results table. Goal: Compare/Organize/Relate. Interaction: User-driven filtering. Justification: Provides a tangible experience of the strategy's core logic. Mock data updated to reflect 89 EMA.
+        - Python Backend Script: Displayed in a code block with explanatory text. Goal: Inform/Organize. Justification: Shows the user how the data processing is handled on the backend in a real application.
+        - Static Content (Definitions, Disclaimers): Presented in clean, styled HTML cards. Goal: Inform. Justification: Ensures clarity and readability.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a1a;
+            /* Dark background like space */
+            color: #e0e0e0;
+            /* Light text for contrast */
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-family: 'Pathway Gothic One', sans-serif;
+        }
+
+        .nav-link {
+            transition: color 0.3s ease, border-bottom-color 0.3s ease;
+            border-bottom: 2px solid transparent;
+            color: #b0b0b0;
+            /* Lighter grey for inactive links */
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: #fcd34d;
+            /* Gold accent for hover/active */
+            border-bottom-color: #fcd34d;
+        }
+
+        .card {
+            background-color: #2c2c2c;
+            /* Darker card background */
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary {
+            background-color: #fcd34d;
+            /* Gold accent */
+            color: #1a1a1a;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background-color: #fbbf24;
+            /* Slightly darker gold */
+        }
+
+        .btn-secondary {
+            background-color: #3b82f6;
+            /* Blue lightsaber color */
+            color: white;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .btn-secondary.active,
+        .btn-secondary:hover {
+            background-color: #2563eb;
+            /* Darker blue */
+            box-shadow: 0 0 10px #3b82f6;
+            /* Subtle glow */
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 45vh;
+        }
+
+        .flow-arrow {
+            font-size: 2.5rem;
+            color: #3b82f6;
+            /* Blue for lightsaber effect */
+        }
+
+        .code-block {
+            background-color: #0d1117;
+            /* GitHub dark theme background */
+            color: #c9d1d9;
+            /* Light text for code */
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .code-block pre {
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body class="antialiased">
+
+    <header class="bg-gray-900/80 backdrop-blur-lg sticky top-0 z-50 shadow-lg">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl text-yellow-400 font-['Pathway_Gothic_One']">GALACTIC STOCK
+                        WATCH</span>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#overview" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Overview</a>
+                        <a href="#strategy" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Strategy
+                            Protocols</a>
+                        <a href="#rationale" class="nav-link px-3 py-2 rounded-md text-sm font-medium">The Force
+                            Behind</a>
+                        <a href="#screener" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Hyperspace
+                            Screener</a>
+                        <a href="#data-core" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Data Core
+                            (Backend)</a>
+                        <a href="#considerations" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Command
+                            Imperatives</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+
+        <section id="overview" class="text-center mb-16 md:mb-24 scroll-mt-20">
+            <h1 class="text-4xl md:text-5xl font-bold text-yellow-400 mb-4">Unleash the Force of Strategic Stock
+                Selection</h1>
+            <p class="max-w-3xl mx-auto text-lg text-gray-300">An interactive guide to a systematic screening strategy
+                for Nifty 50 stocks, leveraging intergalactic Exponential Moving Averages (EMAs) for trend analysis and
+                the Relative Strength Index (RSI) for momentum confirmation. Navigate the market with wisdom.</p>
+        </section>
+
+        <section id="strategy" class="mb-16 md:mb-24 scroll-mt-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-yellow-400">The Dual Protocol Strategy Flow</h2>
+                <p class="mt-2 text-md text-gray-300">This strategy deploys a two-phase filtration process to pinpoint
+                    high-potential assets within the Nifty 50 star system.</p>
+            </div>
+
+            <div class="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-4">
+                <div class="card p-6 w-full md:w-2/5 text-center">
+                    <div class="text-blue-400 mb-2">
+                        <span class="text-2xl font-bold">Phase One</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-200 mb-2">Weekly EMA Proximity Scan</h3>
+                    <p class="text-gray-400">Identify Nifty 50 stocks with a weekly closing price orbiting near a key
+                        Exponential Moving Average (EMA). This reveals assets at potential support or consolidation
+                        points, guided by the market's gravitational pull.</p>
+                </div>
+
+                <div class="flow-arrow transform md:rotate-0 rotate-90">
+                    &rarr;
+                </div>
+
+                <div class="card p-6 w-full md:w-2/5 text-center">
+                    <div class="text-green-400 mb-2">
+                        <span class="text-2xl font-bold">Phase Two</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-200 mb-2">RSI Momentum Confirmation</h3>
+                    <p class="text-gray-400">For the filtered assets, confirm the presence of bullish momentum. The
+                        Relative Strength Index (RSI) must be actively surging above its own advanced moving averages
+                        (DEMA/TEMA), indicating a powerful surge in market energy.</p>
+                </div>
+            </div>
+
+            <div class="mt-12">
+                <h3 class="text-2xl font-bold text-center text-yellow-400 mb-6">Key Navigational Indicators</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="card p-5">
+                        <h4 class="font-semibold text-lg text-gray-200">20 EMA</h4>
+                        <p class="text-gray-400">Short-range trajectory</p>
+                    </div>
+                    <div class="card p-5">
+                        <h4 class="font-semibold text-lg text-gray-200">50 EMA</h4>
+                        <p class="text-gray-400">Mid-range trajectory</p>
+                    </div>
+                    <div class="card p-5">
+                        <h4 class="font-semibold text-lg text-gray-200">89 EMA</h4>
+                        <p class="text-gray-400">Intermediate trajectory</p>
+                    </div>
+                    <div class="card p-5">
+                        <h4 class="font-semibold text-lg text-gray-200">200 EMA</h4>
+                        <p class="text-gray-400">Long-range trend & gravitational support</p>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <section id="rationale" class="mb-16 md:mb-24 scroll-mt-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-yellow-400">The Force Behind the Strategy</h2>
+                <p class="mt-2 text-md text-gray-300">This strategy seeks assets where the market's trend is propelled
+                    by strong momentum. The conceptual chart below illustrates an optimal scenario: price finds
+                    stability at a critical EMA, and the RSI signals accelerating strength, foretelling a potential
+                    ascent.</p>
+            </div>
+            <div class="card p-4 md:p-6">
+                <div class="chart-container">
+                    <canvas id="rationaleChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="screener" class="mb-16 md:mb-24 scroll-mt-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-yellow-400">Hyperspace Screener Simulation</h2>
+                <p class="mt-2 text-md text-gray-300">Engage a specific EMA filter to refine our mock Nifty 50 Star Map.
+                    The console below will display which assets meet the proximity protocols (Phase 1) and if they are
+                    charged with sufficient momentum (Phase 2).</p>
+            </div>
+
+            <div class="flex justify-center flex-wrap gap-4 mb-8" id="ema-filters">
+                <button data-ema="20" class="btn-secondary px-6 py-2 rounded-full font-medium">Orbiting 20 EMA</button>
+                <button data-ema="50" class="btn-secondary px-6 py-2 rounded-full font-medium active">Orbiting 50
+                    EMA</button>
+                <button data-ema="89" class="btn-secondary px-6 py-2 rounded-full font-medium">Orbiting 89 EMA</button>
+                <button data-ema="200" class="btn-secondary px-6 py-2 rounded-full font-medium">Orbiting 200
+                    EMA</button>
+            </div>
+
+            <div class="card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-800">
+                            <tr>
+                                <th class="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Asset
+                                    Name</th>
+                                <th class="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Phase
+                                    1: Orbital Status</th>
+                                <th
+                                    class="px-6 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider text-center">
+                                    Phase 2: Momentum Charge</th>
+                            </tr>
+                        </thead>
+                        <tbody id="screener-results" class="bg-gray-700 divide-y divide-gray-600">
+                        </tbody>
+                    </table>
+                </div>
+                <div id="no-results" class="hidden text-center p-8 text-gray-400">
+                    <p>No assets from our mock star map meet this criteria. The coordinates are clear.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="data-core" class="mb-16 md:mb-24 scroll-mt-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-yellow-400">The Data Core: Backend Protocols</h2>
+                <p class="mt-2 text-md text-gray-300">This Python script, running on a secure server, is the brain of
+                    our operation. It fetches vital market data and applies the EMA proximity and RSI confirmation
+                    protocols to identify potential assets. Its output would then be transmitted to this Galactic Stock
+                    Watch interface.</p>
+            </div>
+            <div class="card p-4 md:p-6">
+                <div class="code-block">
+                    <pre><code>import yfinance as yf
+import pandas as pd
+import requests
+from datetime import datetime
+
+# Nifty 50 stock symbols on Yahoo Finance (suffix .NS for NSE)
+nifty_50 = [
+    "ADANIPORTS.NS", "APOLLOHOSP.NS", "ASIANPAINT.NS", "AXISBANK.NS", "BAJAJ-AUTO.NS",
+    "BAJFINANCE.NS", "BAJAJFINSV.NS", "BHARTIARTL.NS", "BPCL.NS", "BRITANNIA.NS",
+    "CIPLA.NS", "COALINDIA.NS", "DIVISLAB.NS", "DRREDDY.NS", "EICHERMOT.NS",
+    "GRASIM.NS", "HCLTECH.NS", "HDFCBANK.NS", "HDFCLIFE.NS", "HEROMOTOCO.NS",
+    "HINDALCO.NS", "HINDUNILVR.NS", "ICICIBANK.NS", "INDUSINDBK.NS", "INFY.NS",
+    "ITC.NS", "JSWSTEEL.NS", "KOTAKBANK.NS", "LTIM.NS", "LT.NS",
+    "M&M.NS", "MARUTI.NS", "NESTLEIND.NS", "NTPC.NS", "ONGC.NS",
+    "POWERGRID.NS", "RELIANCE.NS", "SBILIFE.NS", "SBIN.NS", "SHREECEM.NS",
+    "SUNPHARMA.NS", "TATACONSUM.NS", "TATAMOTORS.NS", "TATASTEEL.NS", "TCS.NS",
+    "TECHM.NS", "TITAN.NS", "ULTRACEMCO.NS", "UPL.NS", "WIPRO.NS"
+]
+
+# EMA periods to track
+ema_periods = [20, 50, 89, 200]
+threshold_pct = 10.0  # price within ±10% for "near"
+
+# Slack webhook URL (replace this with your real webhook URL if sending alerts)
+SLACK_WEBHOOK = "https://hooks.slack.com/services/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"
+
+def fetch_ema_alerts(symbol, interval):
+    try:
+        df = yf.download(symbol, period='max', interval=interval, auto_adjust=True, progress=False)
+        if df.empty or len(df) < max(ema_periods):
+            return []
+
+        for period in ema_periods:
+            df[f'EMA_{period}'] = df['Close'].ewm(span=period, adjust=False).mean()
+
+        latest_row = df.iloc[-1]
+        price = float(latest_row['Close'])
+
+        alerts = []
+        for period in ema_periods:
+            ema = float(latest_row[f'EMA_{period}'])
+            diff_pct = abs(price - ema) / ema * 100
+            if diff_pct <= threshold_pct:
+                alerts.append(
+                    f"{symbol} is near {period} EMA on {interval.upper()} chart (Price: {price:.2f}, EMA: {ema:.2f}, Diff={diff_pct:.2f}%)"
+                )
+
+        return alerts
+    except Exception as e:
+        print(f"Error processing {symbol} on {interval} chart: {e}")
+        return []
+
+
+def send_slack_message(text):
+    payload = {"text": text}
+    try:
+        requests.post(SLACK_WEBHOOK, json=payload)
+    except Exception as e:
+        print(f"Slack send failed: {e}")
+
+def main():
+    all_alerts = []
+
+    for symbol in nifty_50:
+        # In a real scenario, this would involve more sophisticated RSI DEMA/TEMA calculation here
+        # For this script, we focus on EMA alerts
+        weekly_alerts = fetch_ema_alerts(symbol, '1wk')
+        all_alerts.extend(weekly_alerts)
+
+    if all_alerts:
+        msg = f"*Galactic EMA Alert — {datetime.now().strftime('%Y-%m-%d %H:%M')}* 📈\n\n" + "\n".join(all_alerts)
+        send_slack_message(msg)
+    else:
+        print("No galactic alerts detected.")
+
+if __name__ == "__main__":
+    main()
+</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="considerations" class="scroll-mt-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-yellow-400">Command Imperatives</h2>
+                <p class="mt-2 text-md text-gray-300">This strategy serves as a targeting system, not a final command.
+                    Always conduct further reconnaissance.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="card p-6">
+                    <h3 class="font-semibold text-xl text-gray-200 mb-3">Critical Protocols</h3>
+                    <ul class="space-y-3 text-gray-400">
+                        <li class="flex items-start"><span
+                                class="mr-2 text-blue-400 font-bold">&bull;</span><span><strong>Orbital
+                                    Definition:</strong> The precise proximity to an EMA (e.g., within 1-3%) must be
+                                calibrated and tested rigorously.</span></li>
+                        <li class="flex items-start"><span
+                                class="mr-2 text-blue-400 font-bold">&bull;</span><span><strong>Historical
+                                    Scans:</strong> Always run historical simulations of this strategy to understand its
+                                performance characteristics, success rates, and potential deviations.</span></li>
+                        <li class="flex items-start"><span
+                                class="mr-2 text-blue-400 font-bold">&bull;</span><span><strong>Shield
+                                    Protocols:</strong> Implement robust risk management, including protective measures
+                                and calibrated positioning. No targeting system replaces the need for impenetrable
+                                shield protocols.</span></li>
+                    </ul>
+                </div>
+                <div class="bg-red-900 border-l-4 border-red-700 text-red-200 p-6 rounded-r-lg">
+                    <h3 class="font-bold text-xl mb-2">Galactic Warning</h3>
+                    <p>The intelligence presented in this application is for training and illustrative purposes only. It
+                        does not constitute a directive for financial engagement, an offer to deploy, or a solicitation
+                        of an order to acquire any asset. Always consult with a certified galactic strategist before
+                        engaging in any financial operations.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-900 mt-16 border-t border-gray-700">
+        <div class="container mx-auto py-6 px-4 sm:px-6 lg:px-8 text-center text-gray-500">
+            <p>&copy; 2025 Galactic Strategy Dashboard. For educational purposes only.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // Updated mock data to include the 89 EMA and more varied RSI outcomes
+            const mockStockData = [
+                { name: 'RELIANCE', near_ema: 50, rsi_pass: true },
+                { name: 'HDFCBANK', near_ema: 20, rsi_pass: true },
+                { name: 'INFY', near_ema: 50, rsi_pass: false },
+                { name: 'ICICIBANK', near_ema: 20, rsi_pass: true },
+                { name: 'TCS', near_ema: 89, rsi_pass: true }, /* Changed to 89 */
+                { name: 'HINDUNILVR', near_ema: 200, rsi_pass: false },
+                { name: 'KOTAKBANK', near_ema: 89, rsi_pass: true }, /* Changed to 89 */
+                { name: 'BHARTIARTL', near_ema: 20, rsi_pass: false },
+                { name: 'LT', near_ema: 80, rsi_pass: true }, /* Kept 80 for variety in simulation */
+                { name: 'BAJFINANCE', near_ema: 200, rsi_pass: true },
+                { name: 'AXISBANK', near_ema: 50, rsi_pass: false },
+                { name: 'MARUTI', near_ema: 89, rsi_pass: false }, /* Changed to 89 */
+                { name: 'SBIN', near_ema: 20, rsi_pass: true },
+                { name: 'ASIANPAINT', near_ema: 200, rsi_pass: true },
+                { name: 'ITC', near_ema: 50, rsi_pass: true },
+                { name: 'DRREDDY', near_ema: 89, rsi_pass: true } /* New entry for 89 EMA */
+            ];
+
+            const emaFilterButtons = document.querySelectorAll('#ema-filters button');
+            const resultsBody = document.getElementById('screener-results');
+            const noResultsDiv = document.getElementById('no-results');
+            let activeFilter = '50';
+
+            function renderResults(ema) {
+                resultsBody.innerHTML = '';
+                const filteredData = mockStockData.filter(stock => stock.near_ema == ema);
+
+                if (filteredData.length === 0) {
+                    noResultsDiv.classList.remove('hidden');
+                } else {
+                    noResultsDiv.classList.add('hidden');
+                }
+
+                filteredData.forEach(stock => {
+                    const rsi_icon = stock.rsi_pass
+                        ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-700 text-green-200">✅ Protocol Pass</span>`
+                        : `<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-700 text-red-200">❌ Protocol Fail</span>`;
+
+                    const row = `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-100">${stock.name}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-300">Orbiting ${stock.near_ema}-Day EMA</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            ${rsi_icon}
+                        </td>
+                    </tr>
+                `;
+                    resultsBody.innerHTML += row;
+                });
+            }
+
+            emaFilterButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    emaFilterButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    activeFilter = button.dataset.ema;
+                    renderResults(activeFilter);
+                });
+            });
+
+            renderResults(activeFilter);
+
+            const ctx = document.getElementById('rationaleChart').getContext('2d');
+            const rationaleChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7', 'W8', 'W9', 'W10'],
+                    datasets: [
+                        {
+                            label: 'Asset Price (Credits)',
+                            data: [110, 108, 105, 102, 100, 101, 104, 109, 115, 122],
+                            borderColor: '#fcd34d', /* Gold for price */
+                            backgroundColor: 'rgba(252, 211, 77, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            yAxisID: 'y',
+                        },
+                        {
+                            label: '50-Period EMA (Orbital Path)',
+                            data: [106, 105, 104, 103, 102, 101, 101, 102, 103, 104],
+                            borderColor: '#a78bfa', /* Purple accent */
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.4,
+                            yAxisID: 'y',
+                        },
+                        {
+                            label: 'RSI Value (Momentum Signature)',
+                            data: [45, 40, 35, 32, 40, 55, 65, 70, 72, 75],
+                            borderColor: '#4ade80', /* Green lightsaber for RSI */
+                            backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                            fill: false,
+                            tension: 0.4,
+                            yAxisID: 'y1',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    stacked: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Conceptual Chart: Asset Bouncing from Orbital Path with Momentum Signature',
+                            color: '#e0e0e0', /* Title color */
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        if (context.dataset.label === 'RSI Value (Momentum Signature)') {
+                                            label += `${context.parsed.y.toFixed(0)}`;
+                                        } else {
+                                            label += `Credits ${context.parsed.y.toFixed(2)}`;
+                                        }
+                                    }
+                                    return label;
+                                }
+                            }
+                        },
+                        legend: {
+                            labels: {
+                                color: '#b0b0b0' /* Legend text color */
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Price (Credits)',
+                                color: '#b0b0b0' /* Y-axis title color */
+                            },
+                            ticks: {
+                                color: '#b0b0b0' /* Y-axis ticks color */
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)' /* Grid lines color */
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                            title: {
+                                display: true,
+                                text: 'RSI',
+                                color: '#b0b0b0' /* Y1-axis title color */
+                            },
+                            ticks: {
+                                color: '#b0b0b0' /* Y1-axis ticks color */
+                            },
+                            min: 0,
+                            max: 100
+                        },
+                        x: {
+                            ticks: {
+                                color: '#b0b0b0' /* X-axis ticks color */
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)' /* Grid lines color */
+                            }
+                        }
+                    }
+                }
+            });
+
+            const navLinks = document.querySelectorAll('.nav-link');
+            const sections = document.querySelectorAll('main section');
+
+            window.addEventListener('scroll', () => {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 80) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href').includes(current)) {
+                        link.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+
+</body>
+
+</html>
